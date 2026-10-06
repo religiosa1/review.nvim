@@ -1,0 +1,35 @@
+name: panvimdoc
+# Generates vimdoc out of readme on push to master.
+# To run locally, use `make docs` (needs pandoc).
+on:
+  push:
+    branches: [master, main]
+    paths: [README.md, .github/workflows/panvimdoc.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    name: README.md -> doc/review.txt
+    steps:
+      # env.ACT is set by `act`; skip so a local run works on the bind-mounted
+      # tree (no checkout wiping WIP) and does not try to push.
+      - uses: actions/checkout@v4
+        if: ${{ !env.ACT }}
+      - name: Ensure doc dir exists
+        run: mkdir -p doc
+      - name: panvimdoc
+        uses: kdheepak/panvimdoc@main
+        with:
+          vimdoc: review
+          version: "Neovim >= 0.10.0"
+      - name: Commit generated docs
+        if: ${{ !env.ACT }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: auto-generate vimdoc"
+          branch: ${{ github.ref_name }}
+          file_pattern: doc/*.txt

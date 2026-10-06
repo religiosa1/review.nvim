@@ -1,0 +1,32 @@
+name: test
+# Runs busted specs on push/PR to master.
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: date +%F > todays-date
+      # .tests holds lazy's plugins + the hererocks/busted rock build. Caching it
+      # avoids recompiling Lua and re-fetching busted from luarocks.org every run
+      # (the flaky "busted.runner not found" when that fetch half-fails). Rotates daily.
+      - name: Cache .tests
+        uses: actions/cache@v4
+        with:
+          path: .tests
+          key: ${{ runner.os }}-tests-${{ hashFiles('todays-date') }}
+      # busted.lua sets rocks.hererocks=false under CI, so lazy installs busted
+      # via the system luarocks instead of compiling its own Lua 5.1.
+      - name: Install luarocks
+        run: sudo apt-get update && sudo apt-get install -y luarocks
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - run: make test
