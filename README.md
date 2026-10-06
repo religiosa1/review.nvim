@@ -11,6 +11,12 @@ plain file buffer), then export them all as markdown to hand to a coding agent.
 
 Notes are kept in memory for the session only.
 
+
+
+https://github.com/user-attachments/assets/855e4cbc-f1c8-4262-9554-f628c9b2e366
+
+
+
 Slop disclosure: this is completely AI-generated. I haven't even read the code.
 Works good enough for me though.
 
