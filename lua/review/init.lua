@@ -178,7 +178,7 @@ end
 
 --- Notes in stable order: grouped by file, then by line.
 local function sorted_notes()
-	local sorted = vim.deepcopy(M.notes)
+	local sorted = vim.list_extend({}, M.notes)
 	table.sort(sorted, function(a, b)
 		if a.file ~= b.file then
 			return a.file < b.file
@@ -231,7 +231,7 @@ function M.quickfix()
 	local items = {}
 	for _, n in ipairs(sorted_notes()) do
 		items[#items + 1] = {
-			filename = n.path or n.file,
+			filename = n.path,
 			lnum = n.line,
 			text = (n.side == "old" and "[old] " or "") .. summary(n.text),
 		}
@@ -257,36 +257,23 @@ end
 --- plain buffers and survives line shifts.
 function M.jump(dir)
 	local buf = vim.api.nvim_get_current_buf()
-	local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
-	if #marks == 0 then
+	local cur = vim.api.nvim_win_get_cursor(0)[1] - 1
+	-- Extmarks come back in position order (reversed when start > end), so
+	-- limit = 1 yields the nearest one.
+	local function nearest(from, to)
+		return vim.api.nvim_buf_get_extmarks(buf, ns, from, to, { limit = 1 })[1]
+	end
+	local mark
+	if dir > 0 then
+		mark = nearest({ cur + 1, 0 }, -1) or nearest(0, -1)
+	else
+		mark = (cur > 0 and nearest({ cur - 1, -1 }, 0)) or nearest(-1, 0)
+	end
+	if not mark then
 		vim.notify(options().messages.no_notes_in_buffer, vim.log.levels.INFO)
 		return
 	end
-	local rows = {}
-	for _, m in ipairs(marks) do
-		rows[#rows + 1] = m[2] -- 0-based row
-	end
-	table.sort(rows)
-	local cur = vim.api.nvim_win_get_cursor(0)[1] - 1
-	local target
-	if dir > 0 then
-		for _, r in ipairs(rows) do
-			if r > cur then
-				target = r
-				break
-			end
-		end
-		target = target or rows[1]
-	else
-		for i = #rows, 1, -1 do
-			if rows[i] < cur then
-				target = rows[i]
-				break
-			end
-		end
-		target = target or rows[#rows]
-	end
-	vim.api.nvim_win_set_cursor(0, { target + 1, 0 })
+	vim.api.nvim_win_set_cursor(0, { mark[2] + 1, 0 })
 end
 
 --- Drop all notes and clear inline markers from loaded buffers.
