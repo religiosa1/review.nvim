@@ -8,6 +8,8 @@ plain file buffer), then export them all as markdown to hand to a coding agent.
 - Notes are shown inline as virtual text
 - Jump between notes in the current buffer
 - Yank all notes as markdown, or export them to a scratch split
+- Send all notes to the quickfix list (works with
+  [trouble.nvim](https://github.com/folke/trouble.nvim) too)
 
 Notes are kept in memory for the session only.
 
@@ -42,6 +44,12 @@ Exported markdown looks like this:
   multi-line notes are indented
 ```
 
+`quickfix()` pushes all notes as a new quickfix list titled "Review notes",
+without opening it. It's a snapshot: re-run it after adding or removing notes.
+Open the list however you like: `:copen`, or `:Trouble qflist` with
+trouble.nvim. Notes on the `old` diff side are prefixed with `[old]` and point
+at the working-tree file, so their line may not match.
+
 As notes are supposed to be short-lived, they're only tied by the line number.
 After file edit, they would drift.
 
@@ -58,6 +66,14 @@ After file edit, they would drift.
     { "<leader>ry", function() require("review").yank() end, desc = "Yank review notes" },
     { "<leader>rw", function() require("review").export() end, desc = "Export review notes to a split" },
     { "<leader>rx", function() require("review").clear() end, desc = "Clear review notes" },
+    {
+      "<leader>rq",
+      function()
+        require("review").quickfix()
+        vim.cmd.copen() -- or vim.cmd("Trouble qflist")
+      end,
+      desc = "Review notes to quickfix",
+    },
     { "]r", function() require("review").jump(1) end, desc = "Next review note" },
     { "[r", function() require("review").jump(-1) end, desc = "Prev review note" },
   },
@@ -76,6 +92,10 @@ vim.keymap.set("n", "<leader>rr", review.add, { desc = "Add review note on line"
 vim.keymap.set("n", "<leader>ry", review.yank, { desc = "Yank review notes" })
 vim.keymap.set("n", "<leader>rw", review.export, { desc = "Export review notes to a split" })
 vim.keymap.set("n", "<leader>rx", review.clear, { desc = "Clear review notes" })
+vim.keymap.set("n", "<leader>rq", function()
+  review.quickfix()
+  vim.cmd.copen() -- or vim.cmd("Trouble qflist")
+end, { desc = "Review notes to quickfix" })
 vim.keymap.set("n", "]r", function() review.jump(1) end, { desc = "Next review note" })
 vim.keymap.set("n", "[r", function() review.jump(-1) end, { desc = "Prev review note" })
 ```
@@ -103,11 +123,13 @@ All configuration values are optional and provided here only for the reference
 		edit_note_title = " edit note · q or <esc><esc> to save ",
 		no_file = "review: no file under cursor",
 		no_notes_in_buffer = "review: no notes in this buffer",
+		no_notes = "review: no notes",
 		copied = "review: notes copied",
 		exported = "review: exported %d note(s), copied to clipboard",
 		cleared = "review: cleared",
 		empty_export = "No review notes.",
 		export_heading = "# Review notes",
+		quickfix_title = "Review notes",
 	},
 }
 ```

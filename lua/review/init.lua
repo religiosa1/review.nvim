@@ -15,6 +15,7 @@ end
 
 --- @class ReviewNote
 --- @field file string   repo-relative path
+--- @field path string   absolute path, for quickfix
 --- @field line integer  1-based line in that file's shown side
 --- @field side "old"|"new"
 --- @field text string
@@ -27,7 +28,7 @@ local ns = vim.api.nvim_create_namespace("review_notes")
 --- Resolve file + line + side under the cursor. Prefers the diffview entry (so
 --- the path is repo-relative and the a/b side is known); falls back to the plain
 --- current buffer for reviewing outside diffview.
---- @return { file: string, line: integer, side: "old"|"new", bufnr: integer }|nil
+--- @return { file: string, path: string, line: integer, side: "old"|"new", bufnr: integer }|nil
 local function locate()
 	local win = vim.api.nvim_get_current_win()
 	local ok, lib = pcall(require, "diffview.lib")
@@ -39,14 +40,27 @@ local function locate()
 		if entry.layout and entry.layout.a and entry.layout.a.id == win then
 			side, file = "old", entry.oldpath or entry.path
 		end
-		return { file = file, line = vim.fn.line("."), side = side, bufnr = vim.api.nvim_win_get_buf(win) }
+		local root = view.adapter and view.adapter.ctx.toplevel
+		return {
+			file = file,
+			path = root and vim.fs.joinpath(root, file) or vim.fn.fnamemodify(file, ":p"),
+			line = vim.fn.line("."),
+			side = side,
+			bufnr = vim.api.nvim_win_get_buf(win),
+		}
 	end
 	-- Plain buffer: only real, named files (skip terminals, pickers, scratch).
 	local buf = vim.api.nvim_win_get_buf(win)
 	if vim.bo[buf].buftype ~= "" or vim.api.nvim_buf_get_name(buf) == "" then
 		return nil
 	end
-	return { file = vim.fn.expand("%:."), line = vim.fn.line("."), side = "new", bufnr = buf }
+	return {
+		file = vim.fn.expand("%:."),
+		path = vim.fn.expand("%:p"),
+		line = vim.fn.line("."),
+		side = "new",
+		bufnr = buf,
+	}
 end
 
 --- Find an existing note anchored at the same file/line/side as `loc`.
@@ -59,12 +73,14 @@ local function find_note(loc)
 	end
 end
 
---- Inline marker: first line + an ellipsis when the note spans more.
+--- First line + an ellipsis when the note spans more.
+local function summary(text)
+	return vim.split(text, "\n")[1] .. (text:find("\n") and " …" or "")
+end
+
 local function set_mark(bufnr, line, text)
-	local first = vim.split(text, "\n")[1]
-	local more = text:find("\n") and " …" or ""
 	vim.api.nvim_buf_set_extmark(bufnr, ns, line - 1, 0, {
-		virt_text = { { "  " .. options().icon .. " " .. first .. more, "Comment" } },
+		virt_text = { { "  " .. options().icon .. " " .. summary(text), "Comment" } },
 		virt_text_pos = "eol",
 	})
 end
@@ -143,7 +159,13 @@ function M.add()
 				end
 				return
 			end
-			local note = { file = loc.file, line = loc.line, side = loc.side, text = text }
+			local note = {
+				file = loc.file,
+				path = loc.path,
+				line = loc.line,
+				side = loc.side,
+				text = text,
+			}
 			if idx then
 				M.notes[idx] = note
 			else
@@ -154,14 +176,8 @@ function M.add()
 	})
 end
 
---- Render all notes as markdown.
---- @return string
-function M.to_markdown()
-	local msg = options().messages
-	if #M.notes == 0 then
-		return msg.empty_export .. "\n"
-	end
-	-- Stable order: group by file, then by line.
+--- Notes in stable order: grouped by file, then by line.
+local function sorted_notes()
 	local sorted = vim.deepcopy(M.notes)
 	table.sort(sorted, function(a, b)
 		if a.file ~= b.file then
@@ -169,6 +185,17 @@ function M.to_markdown()
 		end
 		return a.line < b.line
 	end)
+	return sorted
+end
+
+--- Render all notes as markdown.
+--- @return string
+function M.to_markdown()
+	local msg = options().messages
+	if #M.notes == 0 then
+		return msg.empty_export .. "\n"
+	end
+	local sorted = sorted_notes()
 	local out = { msg.export_heading .. "\n" }
 	local cur_file = nil
 	for _, n in ipairs(sorted) do
@@ -190,6 +217,26 @@ end
 function M.yank()
 	vim.fn.setreg("+", M.to_markdown())
 	vim.notify(options().messages.copied, vim.log.levels.INFO)
+end
+
+--- Push all notes as a new quickfix list. Doesn't open it, so callers can
+--- follow up with :copen, :Trouble qflist, etc.
+--- Old-side notes point at the working file, so their line may be off.
+function M.quickfix()
+	local msg = options().messages
+	if #M.notes == 0 then
+		vim.notify(msg.no_notes, vim.log.levels.INFO)
+		return
+	end
+	local items = {}
+	for _, n in ipairs(sorted_notes()) do
+		items[#items + 1] = {
+			filename = n.path or n.file,
+			lnum = n.line,
+			text = (n.side == "old" and "[old] " or "") .. summary(n.text),
+		}
+	end
+	vim.fn.setqflist({}, " ", { title = msg.quickfix_title, items = items })
 end
 
 --- Export notes to a scratch markdown buffer and copy them to the + register.

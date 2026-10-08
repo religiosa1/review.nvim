@@ -28,6 +28,20 @@ describe("review", function()
 		)
 	end)
 
+	it("sends notes to a new quickfix list", function()
+		review.notes = {
+			{ file = "b.lua", path = "/repo/b.lua", line = 3, side = "new", text = "second\nmore" },
+			{ file = "a.lua", path = "/repo/a.lua", line = 9, side = "old", text = "later" },
+		}
+		review.quickfix()
+		local qf = vim.fn.getqflist({ title = 0, items = 0 })
+		assert.equals("Review notes", qf.title)
+		assert.equals("/repo/a.lua", vim.api.nvim_buf_get_name(qf.items[1].bufnr))
+		assert.equals(9, qf.items[1].lnum)
+		assert.equals("[old] later", qf.items[1].text)
+		assert.equals("second …", qf.items[2].text)
+	end)
+
 	it("uses configured messages", function()
 		config.setup({ messages = { empty_export = "nothing" } })
 		assert.equals("nothing\n", review.to_markdown())

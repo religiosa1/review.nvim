@@ -5,11 +5,13 @@ local M = {}
 ---@field edit_note_title? string Float title when editing an existing note
 ---@field no_file? string Shown when there is no reviewable file under the cursor
 ---@field no_notes_in_buffer? string Shown by jump when the buffer has no notes
+---@field no_notes? string Shown by quickfix when there are no notes
 ---@field copied? string Shown after yank
 ---@field exported? string Shown after export; `%d` is the note count
 ---@field cleared? string Shown after clear
 ---@field empty_export? string Markdown output when there are no notes
 ---@field export_heading? string Top heading of the markdown output
+---@field quickfix_title? string Title of the quickfix list
 
 ---@alias ReviewKeymap table<string, string|string[]|false> lhs -> mode(s), false disables
 
@@ -37,11 +39,13 @@ M.defaults = {
 		edit_note_title = " edit note · q or <esc><esc> to save ",
 		no_file = "review: no file under cursor",
 		no_notes_in_buffer = "review: no notes in this buffer",
+		no_notes = "review: no notes",
 		copied = "review: notes copied",
 		exported = "review: exported %d note(s), copied to clipboard",
 		cleared = "review: cleared",
 		empty_export = "No review notes.",
 		export_heading = "# Review notes",
+		quickfix_title = "Review notes",
 	},
 }
 
