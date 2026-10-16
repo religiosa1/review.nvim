@@ -18,14 +18,25 @@ local M = {}
 ---@class ReviewKeys
 ---@field close_note? ReviewKeymap Note float keymaps that close (and save) it
 
+---@class ReviewSideLabels
+---@field old? string|false Notes on diffview's left (old) side
+---@field new? string|false Notes on diffview's right (new) side
+---@field plain? string|false Notes in plain buffers, outside of diffview
+
 ---@class ReviewPluginConfig
 ---@field icon? string Prefix of the inline note marker
+---@field side_labels? ReviewSideLabels Shown in export and quickfix; false hides it
 ---@field keys? ReviewKeys
 ---@field messages? ReviewMessages
 
 ---@type ReviewPluginConfig
 M.defaults = {
 	icon = "💬",
+	side_labels = {
+		old = "old",
+		new = false,
+		plain = false,
+	},
 	keys = {
 		close_note = {
 			["<C-s>"] = { "n", "i" },

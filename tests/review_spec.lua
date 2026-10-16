@@ -17,10 +17,10 @@ describe("review", function()
 			table.concat({
 				"# Review notes\n",
 				"\n## `a.lua`\n",
-				"- **a.lua:1** (new): first",
+				"- **a.lua:1**: first",
 				"- **a.lua:9** (old): later",
 				"\n## `b.lua`\n",
-				"- **b.lua:3** (new): second",
+				"- **b.lua:3**: second",
 				"  more",
 				"",
 			}, "\n"),
@@ -59,6 +59,24 @@ describe("review", function()
 		assert.equals(4, jump_from(5, -1))
 		assert.equals(5, jump_from(1, -1))
 		vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
+	end)
+
+	it("uses configured side labels", function()
+		config.setup({ side_labels = { old = false, new = "new", plain = "file" } })
+		review.notes = {
+			{ file = "a.lua", path = "/repo/a.lua", line = 1, side = "new", text = "n" },
+			{ file = "a.lua", path = "/repo/a.lua", line = 2, side = "old", text = "o" },
+			{ file = "a.lua", path = "/repo/a.lua", line = 3, text = "p" },
+		}
+		local md = review.to_markdown()
+		assert.truthy(md:find("- **a.lua:1** (new): n", 1, true))
+		assert.truthy(md:find("- **a.lua:2**: o", 1, true))
+		assert.truthy(md:find("- **a.lua:3** (file): p", 1, true))
+		review.quickfix()
+		local qf = vim.fn.getqflist()
+		assert.equals("[new] n", qf[1].text)
+		assert.equals("o", qf[2].text)
+		assert.equals("[file] p", qf[3].text)
 	end)
 
 	it("uses configured messages", function()

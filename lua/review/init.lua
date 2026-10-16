@@ -17,7 +17,7 @@ end
 --- @field file string   repo-relative path
 --- @field path string   absolute path, for quickfix
 --- @field line integer  1-based line in that file's shown side
---- @field side "old"|"new"
+--- @field side "old"|"new"|nil  diffview side, nil outside of diffview
 --- @field text string
 
 --- @type ReviewNote[]
@@ -28,7 +28,7 @@ local ns = vim.api.nvim_create_namespace("review_notes")
 --- Resolve file + line + side under the cursor. Prefers the diffview entry (so
 --- the path is repo-relative and the a/b side is known); falls back to the plain
 --- current buffer for reviewing outside diffview.
---- @return { file: string, path: string, line: integer, side: "old"|"new", bufnr: integer }|nil
+--- @return { file: string, path: string, line: integer, side: "old"|"new"|nil, bufnr: integer }|nil
 local function locate()
 	local win = vim.api.nvim_get_current_win()
 	local ok, lib = pcall(require, "diffview.lib")
@@ -37,7 +37,10 @@ local function locate()
 	if entry then
 		-- Default to the new side; only call it "old" when the cursor is in the a-win.
 		local side, file = "new", entry.path
-		if entry.layout and entry.layout.a and entry.layout.a.id == win then
+		-- entry.layout is a template without window ids; the live windows are on
+		-- the view's current layout.
+		local layout = view.cur_layout
+		if layout and layout.a and layout.a.id == win then
 			side, file = "old", entry.oldpath or entry.path
 		end
 		local root = view.adapter and view.adapter.ctx.toplevel
@@ -58,7 +61,6 @@ local function locate()
 		file = vim.fn.expand("%:."),
 		path = vim.fn.expand("%:p"),
 		line = vim.fn.line("."),
-		side = "new",
 		bufnr = buf,
 	}
 end
@@ -76,6 +78,11 @@ end
 --- First line + an ellipsis when the note spans more.
 local function summary(text)
 	return vim.split(text, "\n")[1] .. (text:find("\n") and " …" or "")
+end
+
+--- Configured label for the note's side, or nil when hidden.
+local function side_label(n)
+	return options().side_labels[n.side or "plain"] or nil
 end
 
 local function set_mark(bufnr, line, text)
@@ -204,7 +211,8 @@ function M.to_markdown()
 			out[#out + 1] = "\n## `" .. n.file .. "`\n"
 		end
 		local body = vim.split(n.text, "\n")
-		out[#out + 1] = ("- **%s:%d** (%s): %s"):format(n.file, n.line, n.side, body[1])
+		local label = side_label(n)
+		out[#out + 1] = ("- **%s:%d**%s: %s"):format(n.file, n.line, label and " (" .. label .. ")" or "", body[1])
 		for i = 2, #body do
 			out[#out + 1] = "  " .. body[i]
 		end
@@ -230,10 +238,11 @@ function M.quickfix()
 	end
 	local items = {}
 	for _, n in ipairs(sorted_notes()) do
+		local label = side_label(n)
 		items[#items + 1] = {
 			filename = n.path,
 			lnum = n.line,
-			text = (n.side == "old" and "[old] " or "") .. summary(n.text),
+			text = (label and "[" .. label .. "] " or "") .. summary(n.text),
 		}
 	end
 	vim.fn.setqflist({}, " ", { title = msg.quickfix_title, items = items })

@@ -26,7 +26,7 @@ Works good enough for me though.
 
 In a diffview, the note is anchored to the repo-relative path and the diff side
 (`old` for the left window, `new` otherwise). Outside of diffview, the
-cwd-relative path of the current buffer is used, side is always `new`.
+cwd-relative path of the current buffer is used, without a side.
 
 The note float saves on close, no matter how it's closed (configured keys,
 `:q`, focusing another window). To discard changes, undo them before closing.
@@ -39,7 +39,7 @@ Exported markdown looks like this:
 
 ## `lua/foo.lua`
 
-- **lua/foo.lua:12** (new): this should be a local
+- **lua/foo.lua:12**: this should be a local
 - **lua/foo.lua:40** (old): why was this removed?
   multi-line notes are indented
 ```
@@ -49,6 +49,9 @@ without opening it. It's a snapshot: re-run it after adding or removing notes.
 Open the list however you like: `:copen`, or `:Trouble qflist` with
 trouble.nvim. Notes on the `old` diff side are prefixed with `[old]` and point
 at the working-tree file, so their line may not match.
+
+Only `old` notes are labeled by default (`(old)` in export, `[old]` in
+quickfix). Labels for each kind of note are configurable via `side_labels`.
 
 As notes are supposed to be short-lived, they're only tied by the line number.
 After file edit, they would drift.
@@ -108,6 +111,12 @@ All configuration values are optional and provided here only for the reference
 {
 	-- prefix of the inline note marker
 	icon = "💬",
+	-- labels in export and quickfix, per note kind; false hides it
+	side_labels = {
+		old = "old", -- diffview's left window
+		new = false, -- diffview's right window
+		plain = false, -- plain buffer, outside of diffview
+	},
 	-- keymaps, as lhs -> mode(s). Set one to false to disable a default one.
 	keys = {
 		-- in the note float, closing (and saving) it
