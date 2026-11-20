@@ -109,7 +109,7 @@ All configuration values are optional and provided here only for the reference
 
 ```lua
 {
-	-- prefix of the inline note marker
+	-- note marker in the sign column (1-2 cells wide)
 	icon = "💬",
 	-- labels in export and quickfix, per note kind; false hides it
 	side_labels = {

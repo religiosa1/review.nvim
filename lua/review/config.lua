@@ -24,7 +24,7 @@ local M = {}
 ---@field plain? string|false Notes in plain buffers, outside of diffview
 
 ---@class ReviewPluginConfig
----@field icon? string Prefix of the inline note marker
+---@field icon? string Note marker in the sign column (1-2 cells)
 ---@field side_labels? ReviewSideLabels Shown in export and quickfix; false hides it
 ---@field keys? ReviewKeys
 ---@field messages? ReviewMessages

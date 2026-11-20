@@ -87,7 +87,10 @@ end
 
 local function set_mark(bufnr, line, text)
 	vim.api.nvim_buf_set_extmark(bufnr, ns, line - 1, 0, {
-		virt_text = { { "  " .. options().icon .. " " .. summary(text), "Comment" } },
+		-- Sign column keeps the marker visible on wide lines; eol text is the preview.
+		sign_text = options().icon,
+		sign_hl_group = "Comment",
+		virt_text = { { "  " .. summary(text), "Comment" } },
 		virt_text_pos = "eol",
 	})
 end
